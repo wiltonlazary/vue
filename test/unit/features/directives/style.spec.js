@@ -83,6 +83,24 @@ describe('Directive v-bind:style', () => {
     }).then(done)
   })
 
+  it('auto-prefixed style value as array', done => {
+    vm.styles = { display: ['-webkit-box', '-ms-flexbox', 'flex'] }
+    const testEl = document.createElement('div')
+    vm.styles.display.forEach(value => {
+      testEl.style.display = value
+    })
+    waitForUpdate(() => {
+      expect(vm.$el.style.display).toBe(testEl.style.display)
+    }).then(done)
+  })
+
+  it('!important', done => {
+    vm.styles = { display: 'block !important' }
+    waitForUpdate(() => {
+      expect(vm.$el.style.getPropertyPriority('display')).toBe('important')
+    }).then(done)
+  })
+
   it('object with multiple entries', done => {
     vm.$el.style.color = 'red'
     vm.styles = {
@@ -195,7 +213,12 @@ describe('Directive v-bind:style', () => {
     }).$mount()
     const style = vm.$el.style
     const child = vm.$children[0]
-    expect(style.cssText.replace(/\s/g, '')).toBe('margin-right:20px;margin-left:16px;text-align:left;color:red;font-size:12px;')
+    const css = style.cssText.replace(/\s/g, '')
+    expect(css).toContain('margin-right:20px;')
+    expect(css).toContain('margin-left:16px;')
+    expect(css).toContain('text-align:left;')
+    expect(css).toContain('color:red;')
+    expect(css).toContain('font-size:12px;')
     expect(style.color).toBe('red')
     expect(style.marginRight).toBe('20px')
     vm.test.color = 'blue'
@@ -270,6 +293,89 @@ describe('Directive v-bind:style', () => {
     }).then(() => {
       expect(style.fontSize).toBe('12px')
       expect(style.marginLeft).toBe('40px')
+    }).then(done)
+  })
+
+  it('should not merge for different adjacent elements', (done) => {
+    const vm = new Vue({
+      template:
+        '<div>' +
+          '<section style="color: blue" :style="style" v-if="!bool"></section>' +
+          '<div></div>' +
+          '<section style="margin-top: 12px" v-if="bool"></section>' +
+        '</div>',
+      data: {
+        bool: false,
+        style: {
+          fontSize: '12px'
+        }
+      }
+    }).$mount()
+    const style = vm.$el.children[0].style
+    expect(style.fontSize).toBe('12px')
+    expect(style.color).toBe('blue')
+    waitForUpdate(() => {
+      vm.bool = true
+    }).then(() => {
+      expect(style.color).toBe('')
+      expect(style.fontSize).toBe('')
+      expect(style.marginTop).toBe('12px')
+    }).then(done)
+  })
+
+  it('should not merge for v-if, v-else-if and v-else elements', (done) => {
+    const vm = new Vue({
+      template:
+        '<div>' +
+          '<section style="color: blue" :style="style" v-if="foo"></section>' +
+          '<section style="margin-top: 12px" v-else-if="bar"></section>' +
+          '<section style="margin-bottom: 24px" v-else></section>' +
+          '<div></div>' +
+        '</div>',
+      data: {
+        foo: true,
+        bar: false,
+        style: {
+          fontSize: '12px'
+        }
+      }
+    }).$mount()
+    const style = vm.$el.children[0].style
+    expect(style.fontSize).toBe('12px')
+    expect(style.color).toBe('blue')
+    waitForUpdate(() => {
+      vm.foo = false
+    }).then(() => {
+      expect(style.color).toBe('')
+      expect(style.fontSize).toBe('')
+      expect(style.marginBottom).toBe('24px')
+      vm.bar = true
+    }).then(() => {
+      expect(style.color).toBe('')
+      expect(style.fontSize).toBe('')
+      expect(style.marginBottom).toBe('')
+      expect(style.marginTop).toBe('12px')
+    }).then(done)
+  })
+
+  // #5318
+  it('should work for elements passed down as a slot', done => {
+    const vm = new Vue({
+      template: `<test><div :style="style"/></test>`,
+      data: {
+        style: { color: 'red' }
+      },
+      components: {
+        test: {
+          template: `<div><slot/></div>`
+        }
+      }
+    }).$mount()
+
+    expect(vm.$el.children[0].style.color).toBe('red')
+    vm.style.color = 'green'
+    waitForUpdate(() => {
+      expect(vm.$el.children[0].style.color).toBe('green')
     }).then(done)
   })
 })

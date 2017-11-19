@@ -1,18 +1,11 @@
 /* @flow */
 
-import { inBrowser } from 'core/util/env'
+let decoder
 
-let decode
-
-/* istanbul ignore else */
-if (inBrowser) {
-  const decoder = document.createElement('div')
-  decode = (html: string): string => {
+export default {
+  decode (html: string): string {
+    decoder = decoder || document.createElement('div')
     decoder.innerHTML = html
     return decoder.textContent
   }
-} else {
-  decode = require('he').decode
 }
-
-export { decode }

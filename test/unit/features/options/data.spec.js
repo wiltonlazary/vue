@@ -75,4 +75,52 @@ describe('Options data', () => {
     vm.$data = {}
     expect('Avoid replacing instance root $data').toHaveBeenWarned()
   })
+
+  it('should have access to props', () => {
+    const Test = {
+      props: ['a'],
+      render () {},
+      data () {
+        return {
+          b: this.a
+        }
+      }
+    }
+    const vm = new Vue({
+      template: `<test ref="test" :a="1"></test>`,
+      components: { Test }
+    }).$mount()
+    expect(vm.$refs.test.b).toBe(1)
+  })
+
+  it('should have access to methods', () => {
+    const vm = new Vue({
+      methods: {
+        get () {
+          return { a: 1 }
+        }
+      },
+      data () {
+        return this.get()
+      }
+    })
+    expect(vm.a).toBe(1)
+  })
+
+  it('should called with this', () => {
+    const vm = new Vue({
+      template: '<div><child></child></div>',
+      provide: { foo: 1 },
+      components: {
+        child: {
+          template: '<span>{{bar}}</span>',
+          inject: ['foo'],
+          data ({ foo }) {
+            return { bar: 'foo:' + foo }
+          }
+        }
+      }
+    }).$mount()
+    expect(vm.$el.innerHTML).toBe('<span>foo:1</span>')
+  })
 })
